@@ -1,9 +1,21 @@
-final_proj_env/
 .env
-.pyc
+.env.local
+.DS_Store
 
-backend/language_translation.py
-venv_fp
-backend/dashboard.py
-backend/__pycache__/
-backend\__pycache__
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv*/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/.next/
+frontend/out/
+
+# App data
+data/
+backend/data/
+backend/*.db
+

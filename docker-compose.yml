@@ -1,11 +1,43 @@
-version: '3'
-
 services:
-  fastapi:
-    image: subhashchandran/assignment-03-fastapi:v2
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: travelbud
+      POSTGRES_PASSWORD: travelbud
+      POSTGRES_DB: travelbud
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travelbud"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://travelbud:travelbud@db:5432/travelbud
     ports:
       - "8000:8000"
-  streamlit:
-    image: subhashchandran/assignment-03-streamlit:v2
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - itinerary_data:/app/data
+
+  web:
+    build: ./frontend
+    environment:
+      API_INTERNAL_URL: http://api:8000
     ports:
-      - "8501:8501"
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  itinerary_data:

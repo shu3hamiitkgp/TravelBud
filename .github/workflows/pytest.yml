@@ -1,34 +1,48 @@
-name: Pytest
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
-    env:
-      FINAL_PROJ_ENV: ${{ secrets.FINAL_PROJ_ENV }}
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r Requirements.txt
+      - name: Install backend
+        working-directory: backend
+        run: pip install -e ".[dev]"
 
-    - name: Set environment variables
-      run: echo "$FINAL_PROJ_ENV" >> .env
+      - name: Run tests
+        working-directory: backend
+        run: pytest -q
 
-    - name: Run pytest
-      run: pytest test.py
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
