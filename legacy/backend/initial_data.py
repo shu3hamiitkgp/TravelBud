@@ -4,10 +4,12 @@ import pandas as pd
 from datetime import datetime
 import os
 
-config={'DB_USER_NAME':'postgres',
-'DB_PASSWORD':'postgres',
-'DB_ADDRESS':'database-1.ctwoomj0yrue.us-east-2.rds.amazonaws.com',
-'DB_NAME':'postgres'}
+# NOTE: hardcoded RDS credentials removed for security. The old values remain in
+# git history — that database's credentials must be rotated.
+config={'DB_USER_NAME':os.environ.get('DB_USER_NAME'),
+'DB_PASSWORD':os.environ.get('DB_PASSWORD'),
+'DB_ADDRESS':os.environ.get('DB_HOST'),
+'DB_NAME':os.environ.get('DB_NAME')}
 
 engine=create_engine('postgresql://'+str(config.get('DB_USER_NAME'))+':'+str(config.get('DB_PASSWORD'))+'@'+str(config.get('DB_ADDRESS'))+':5432/'+str(config.get('DB_NAME')))
 connection = engine.connect()

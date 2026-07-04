@@ -1,84 +1,93 @@
 # TravelBud
 
-> [Application Link](http://34.148.127.152:8503/) <br>
-> [Codelabs Documentation](https://codelabs-preview.appspot.com/?file_id=1jhLIlc8r7w5w6xI9wYMLNCgZBmF4S3Pl0wPJ1eCel9I#0)<br>
+Personalized travel itinerary planner: pick a route, dates, and budget; choose from the top attractions at your destination; get the cheapest flight + hotel bundle for your dates and an AI-generated day-by-day itinerary (English, Spanish, or Hindi) as a downloadable PDF.
 
+> This is a full rebuild of the original 2023 Streamlit + FastAPI project (preserved in [`legacy/`](legacy/)) as a modern webapp: **Next.js frontend + modernized FastAPI backend + Claude API**.
 
-### Introduction
+## Architecture
 
-Travel Bud is an all-in-one vacation planning application designed to simplify the process of researching and booking flights, accommodations, and local attractions. The Personalized Travel Itinerary Planner creates tailored travel itineraries based on user preferences and budget constraints, making vacation planning a more efficient and enjoyable experience. An example of the generated itinerary can be seen [here](/Goyal%20Itinerary.pdf)
-
-### Features
-
-- Personalized recommendations based on user areas of interest
-- Ability for users to update their password and preferences
-- Rate limiting based on selected plans
-- Application-level analytics for detailed insights into application usage
-- Top 10 list of locations based on the user's destination, along with **optimal pairing** between the locations
-- Leveraging Booking.com API and Skyscanner API to help users find suitable accommodations and flights
-- Assistance in creating an itinerary using the Chatgpt API and optimal prompting techniques (Custom Prompt created can be seen [here](/prompt.py))
-- Option to download itinerary in three languages (English, Spanish, and Hindi) delivered via Hugging Face models
-- Coverage of a wide demographic, making it a global application
-
-### Architecture Diagram
-<img src="Architecture Diagram.jpeg" alt="Architecture Diagram">
-
-### Demo 
-
-[Watch the video](https://youtu.be/K9pOR9n-TbQ?si=mqgg8lBWjGLJ9HHY)
-
-
-### Optimization 
-**Location Optimization:**
-
-At Travel Bud, we understand that time is a valuable commodity for travelers, and therefore, we strive to provide the most efficient and effective itinerary planning experience possible. Our optimization algorithm is designed to retrieve the top 10 locations from the Google Maps API based on the user's destination, ensuring that they have access to the best and most popular local attractions.
-
-Once the user selects their areas of interest from the 10 available options, our algorithm creates pairs of two locations that are in close proximity to each other. This ensures that the user can visit both locations in a single day, maximizing their vacation experience and making the most of their time. If there are any remaining locations, the user can visit them on their last day, making their itinerary as comprehensive as possible.
-
-We understand that every traveler is different and has unique needs and preferences. Therefore, we recommend the optimal number of locations for the user to visit based on the number of days they plan to stay at their destination. Typically, we recommend no more than twice the number of days the user plans to stay, ensuring that they have enough time to relax and enjoy their vacation.
-
-**Booking Optimization:**
-
-We understand that budget is a key factor for many travelers when planning their vacation. Therefore, we offer the option for users to select their desired start and end days and budget, allowing them to tailor their itinerary to their specific needs.
-
-Using this information, our algorithm creates groupings of all possible options and searches for hotels and airlines that fit the user's criteria. We search for options that fit within the user's budget, while also ensuring that they have access to the best possible accommodations and flights.
-
-Our algorithm then finds the optimal cost that fits the user's budget, giving them the best possible experience for their money. Users can choose from four airline options: best, cheapest, fastest, and direct, providing them with the flexibility to select the airline that best suits their needs.
-
-In cases where the user's budget does not match their desired options, we recommend the lowest possible cost to the user, ensuring that they get the most out of their vacation while saving money.
-
-Overall, our optimization algorithms for location and booking ensure that Travel Bud users have the best possible vacation experience while also optimizing their time and budget.
-
-### Steps to reproduce
-To run it locally please follow the steps below - 
-- clone the repo 
-- create a virtual environment and install requirements.txt
-- subscribe to both these free tiers on Rapid API [Booking.com](https://rapidapi.com/tipsters/api/booking-com) and [Skyscanner.com](https://rapidapi.com/3b-data-3b-data-default/api/skyscanner44/)
-- create a .env file with the following variables
 ```
-OPENAI_API_KEY=
-AWS_ACCESS_KEY=
-AWS_SECRET_KEY=
-AWS_LOG_ACCESS_KEY = 
-AWS_LOG_SECRET_KEY = 
-bucket_name= <Enter AWS Bucket Name>
-RAPID_API_KEY =
-GOOGLE_MAPS_API_KEY =
-DB_USER_NAME=
-DB_PASSWORD= 
-DB_HOST=
-DB_NAME= 
-SECRET_KEY= <secret key generated using secrets package>
-ALGORITHM=HS256
+Browser ── Next.js (App Router, TypeScript, Tailwind, recharts)
+              │  typed API client; JWT in httpOnly cookies
+              │  (Next rewrites proxy /api/* → FastAPI, same-origin cookies)
+              ▼
+          FastAPI (routers → services → providers)
+              ├─ auth: bcrypt + JWT access/refresh cookies, role-based admin
+              ├─ attractions: Google Places + greedy distance pairing (24h TTL cache,
+              │               static fallback when no key)
+              ├─ pricing: provider interface — Mock (default) or Amadeus test tier
+              ├─ itinerary: Anthropic Claude — generation AND translation
+              ├─ pdf: fpdf2 in-memory (bundled Noto fonts for Spanish/Hindi)
+              │       storage: local dir (default) or S3
+              └─ SQLAlchemy 2.x + Alembic ── PostgreSQL
 ```
 
+## Quickstart
 
-Attestation
-WE ATTEST THAT WE HAVEN’T USED ANY OTHER STUDENTS WORK IN OUR ASSIGNMENT AND ABIDE BY THE POLICIES LISTED IN THE STUDENT HANDBOOK
+```bash
+cp .env.example .env       # set at least ANTHROPIC_API_KEY and JWT_SECRET
+docker compose up --build
+```
 
-Contribution:
+- Web: http://localhost:3000
+- API docs: http://localhost:8000/docs
+- Admin login: `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from your `.env`
 
-- Dhanush Kumar Shankar: 25% 
-- Nishanth Prasath: 25%
-- Shubham Goyal: 25%
-- Subhash Chandran Shankarakumar: 25%
+Migrations and seeding (plans + admin user) run automatically on API startup.
+
+### Local dev without Docker
+
+```bash
+# backend
+cd backend
+python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+docker compose up -d db            # or point DATABASE_URL at your own Postgres
+.venv/bin/alembic upgrade head && .venv/bin/python -m app.db.seed
+.venv/bin/uvicorn app.main:app --reload
+
+# frontend (second terminal)
+cd frontend
+npm install && npm run dev
+```
+
+### Tests
+
+```bash
+cd backend && .venv/bin/pytest     # 14 tests: auth, RBAC, pricing, rate limits, PDF
+cd frontend && npm run lint && npx tsc --noEmit
+```
+
+## Configuration matrix
+
+The app degrades gracefully — it runs end-to-end with only an Anthropic key:
+
+| Key | Without it | With it |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | template-based offline itinerary, no translation | Claude generates + translates itineraries |
+| `GOOGLE_MAPS_API_KEY` | static sample attractions, pseudo-distances | real Places top-10 + Distance Matrix pairing |
+| `AMADEUS_CLIENT_ID/SECRET` + `PRICING_PROVIDER=amadeus` | deterministic mock hotels/flights | real Amadeus test-tier prices |
+| `STORAGE_BACKEND=s3` + AWS creds | PDFs cached in a local dir | PDFs stored in S3 |
+
+## Features
+
+- Multi-step trip wizard: city/IATA autocomplete (7k airports bundled), dates, party size, flight preference (Best/Cheapest/Fastest/Direct), budget slider
+- Cheapest flight+hotel bundle across every valid date window in your range, with over-budget warning
+- Attractions paired by proximity so each day's stops are close together
+- Itineraries persisted and re-downloadable as PDFs; Unicode fonts so Hindi/Spanish render correctly
+- Plan tiers (Basic 10 / Standard 25 / Premium 50 requests) with rate limiting
+- Admin dashboard: users by plan, trips per day, top destinations, budget stats (aggregates only)
+
+## Security notes
+
+- Tokens are httpOnly cookies — never written to disk or readable by JS (the legacy app wrote them to `.env`).
+- Admin endpoints require the `admin` role server-side; analytics return aggregates, never user rows.
+- ⚠️ The legacy code once contained hardcoded RDS credentials which remain in git history — **those database credentials must be rotated** if that RDS instance still exists.
+- Password reset is demo-grade (no email verification), matching the original app's behavior.
+
+## Repo layout
+
+```
+frontend/   Next.js app (src/app routes, src/lib/api typed client)
+backend/    FastAPI app (app/routers, app/services, app/providers, alembic, tests)
+legacy/     original Streamlit + monolithic FastAPI implementation (reference only)
+```
