@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { LogOut, Ticket } from "lucide-react";
+import Logo from "@/components/Logo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 
@@ -42,36 +46,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <UserContext.Provider value={{ user, refresh }}>
-      <header className="border-b border-slate-200 bg-white">
+      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Link href="/" className="text-lg font-bold text-sky-700">
-            🌎 TravelBud
-          </Link>
-          <nav className="flex items-center gap-4">
+          <Logo />
+          <nav className="flex items-center gap-1 sm:gap-2">
             {links.map((l) => (
-              <Link
+              <Button
                 key={l.href}
-                href={l.href}
-                className={`text-sm font-medium ${
-                  pathname.startsWith(l.href)
-                    ? "text-sky-700"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
+                variant={pathname.startsWith(l.href) ? "secondary" : "ghost"}
+                size="sm"
+                render={<Link href={l.href} />}
               >
                 {l.label}
-              </Link>
+              </Button>
             ))}
-            {user && (
-              <span className="hidden text-sm text-slate-500 sm:inline">
-                {user.name} · {user.hits_left} requests left
-              </span>
+            {user && user.role !== "admin" && (
+              <Badge variant="outline" className="ml-1 hidden gap-1 sm:inline-flex">
+                <Ticket className="size-3.5" />
+                {user.hits_left} left
+              </Badge>
             )}
-            <button
-              onClick={logout}
-              className="text-sm font-medium text-slate-600 hover:text-slate-900"
-            >
-              Log out
-            </button>
+            <Button variant="ghost" size="sm" onClick={logout} aria-label="Log out">
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline">Log out</span>
+            </Button>
           </nav>
         </div>
       </header>
